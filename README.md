@@ -36,7 +36,8 @@ bun run package
 ```
 
 Open this folder in VS Code and press `F5` to launch an Extension Development
-Host.
+Host. If you open the full freight workspace instead, use the
+`VS Code Freight: Extension` launch configuration from the workspace root.
 
 The extension expects a `freight` executable on `PATH` by default. Override
 `freight.executablePath` if you want to use a local binary.

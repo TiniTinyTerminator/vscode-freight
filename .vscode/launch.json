@@ -11,6 +11,15 @@
         "${workspaceFolder}/../.."
       ],
       "outFiles": [],
+      "resolveSourceMapLocations": [
+        "${workspaceFolder}/**",
+        "!**/node_modules/**",
+        "!${env:HOME}/.vscode-server/**"
+      ],
+      "skipFiles": [
+        "<node_internals>/**",
+        "${env:HOME}/.vscode-server/**"
+      ],
       "preLaunchTask": "bun: package"
     }
   ]

@@ -191,7 +191,22 @@
       },
       {
         "command": "freight.toggleProfile",
-        "title": "Freight: Switch Profile (dev / release)"
+        "title": "Freight: Switch Profile"
+      },
+      {
+        "command": "freight.pickTarget",
+        "title": "Freight: Set Active Target",
+        "icon": "$(run)"
+      },
+      {
+        "command": "freight.pickSysroot",
+        "title": "Freight: Set Sysroot",
+        "icon": "$(server-environment)"
+      },
+      {
+        "command": "freight.pickFamily",
+        "title": "Freight: Set Compiler Family",
+        "icon": "$(chip)"
       }
     ],
     "debuggers": [
@@ -273,6 +288,15 @@
                 },
                 "default": {},
                 "description": "Environment variables passed to the debuggee."
+              },
+              "sysroot": {
+                "type": "string",
+                "description": "Cross-compile sysroot path passed to the compiler."
+              },
+              "family": {
+                "type": "string",
+                "enum": ["gcc", "clang", "msvc", "nvcc"],
+                "description": "Compiler family override. Omit to use the status bar / auto-detect."
               },
               "cwd": {
                 "type": "string",
@@ -360,7 +384,10 @@
         { "command": "freight.debug" },
         { "command": "freight.refreshExplorer" },
         { "command": "freight.openDepDoc" },
-        { "command": "freight.toggleProfile" }
+        { "command": "freight.toggleProfile" },
+        { "command": "freight.pickTarget" },
+        { "command": "freight.pickSysroot" },
+        { "command": "freight.pickFamily" }
       ],
       "view/title": [
         {

@@ -19,10 +19,11 @@ function parseFreightToml(src) {
     buildDependencies: {},
     bins: [],
     libs: [],
+    profiles: [],  // custom profile names beyond dev/release
   };
 
-  let section = null; // current section name
-  let currentTarget = null; // current [[bin]] or [[lib]] object
+  let section = null;
+  let currentTarget = null;
 
   for (const raw of lines) {
     const line = raw.trim();
@@ -44,6 +45,12 @@ function parseFreightToml(src) {
     if (tableHeader) {
       currentTarget = null;
       section = tableHeader[1].trim();
+      // Collect [profile.<name>] entries
+      const profileMatch = section.match(/^profile\.(.+)$/);
+      if (profileMatch) {
+        const pname = profileMatch[1].trim();
+        if (!result.profiles.includes(pname)) result.profiles.push(pname);
+      }
       continue;
     }
 
@@ -170,6 +177,8 @@ class FreightExplorerProvider {
     this._context = context;
     this._onDidChangeTreeData = new vscode.EventEmitter();
     this.onDidChangeTreeData = this._onDidChangeTreeData.event;
+    this._onDidRefresh = new vscode.EventEmitter();
+    this.onDidRefresh = this._onDidRefresh.event;
     this._toml = null;
     this._manifestPath = null;
     this._watcher = null;
@@ -206,11 +215,13 @@ class FreightExplorerProvider {
     }
 
     this._onDidChangeTreeData.fire(undefined);
+    this._onDidRefresh.fire(undefined);
   }
 
   dispose() {
     this._watcher?.dispose();
     this._onDidChangeTreeData.dispose();
+    this._onDidRefresh.dispose();
   }
 
   getTreeItem(element) {
@@ -225,6 +236,16 @@ class FreightExplorerProvider {
   /** Returns the names of all [[bin]] targets in the current manifest. */
   getBinNames() {
     return (this._toml?.bins ?? []).map((b) => b.name).filter(Boolean);
+  }
+
+  /**
+   * Returns profile names declared in freight.toml ([profile.<name>]).
+   * Always includes "dev" and "release" as the built-in defaults.
+   */
+  getProfiles() {
+    const base = ["dev", "release"];
+    const extra = (this._toml?.profiles ?? []).filter((p) => !base.includes(p));
+    return [...base, ...extra];
   }
 
   _rootNodes() {

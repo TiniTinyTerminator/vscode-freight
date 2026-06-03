@@ -408,26 +408,64 @@ class FreightDebugAdapterFactory {
   async createDebugAdapterDescriptor(session) {
     const config = session.configuration;
     const freight = vscode.workspace.getConfiguration("freight").get("executablePath", "freight");
-    const cwd = config.cwd;
+    const folder = getActiveWorkspaceFolder();
+    // Resolve ${workspaceFolder} so the subprocess gets a real path.
+    const cwd = folder ? resolveCwd(config.cwd, folder) : undefined;
 
     if (config.mode === "run") {
-      const folder = getActiveWorkspaceFolder();
       if (folder) {
         const resolvedConfig = await resolveBin(config);
-        if (!resolvedConfig) return undefined;
+        if (!resolvedConfig) {
+          // User cancelled — end the debug session cleanly.
+          return new vscode.DebugAdapterInlineImplementation(new CancelledAdapter());
+        }
         await runFreightCommand(buildRunArgs(resolvedConfig));
       }
-      return undefined;
+      return new vscode.DebugAdapterInlineImplementation(new CancelledAdapter());
     }
 
     const resolvedConfig = await resolveBin(config);
-    if (!resolvedConfig) return undefined;
+    if (!resolvedConfig) {
+      return new vscode.DebugAdapterInlineImplementation(new CancelledAdapter());
+    }
 
     const dapArgs = ["dap"];
     if (resolvedConfig.request === "attach") dapArgs.push("--attach");
 
     return new vscode.DebugAdapterExecutable(freight, dapArgs, cwd ? { cwd } : undefined);
   }
+}
+
+/** Minimal inline DAP adapter that immediately sends an 'initialized' then
+ *  terminates the session. Used to cleanly end sessions that were handled
+ *  out-of-band (freight run via task) without leaving VS Code in a loading state. */
+class CancelledAdapter {
+  onError() {}
+  onExit() {}
+  handleMessage(message) {
+    if (message.command === "initialize") {
+      this._sendEvent("initialized");
+      this._sendResponse(message, {});
+    } else if (message.command === "launch" || message.command === "attach") {
+      this._sendResponse(message, {});
+      this._sendEvent("terminated");
+    } else {
+      this._sendResponse(message, {});
+    }
+  }
+  _sendResponse(req, body) {
+    this._emit({ type: "response", request_seq: req.seq, seq: 0, success: true, command: req.command, body });
+  }
+  _sendEvent(event) {
+    this._emit({ type: "event", seq: 0, event });
+  }
+  _emit(msg) {
+    if (this._cb) this._cb(msg);
+  }
+  sendMessage() {}
+  dispose() {}
+  // VS Code calls setMessageCallback to receive messages from the adapter.
+  setMessageCallback(cb) { this._cb = cb; }
 }
 
 // ── Launch config helpers ─────────────────────────────────────────────────────

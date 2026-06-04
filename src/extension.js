@@ -23,6 +23,11 @@ let sbTarget;   // priority 53 — $(run) target
 let sbSysroot;  // priority 52 — $(server-environment) sysroot
 let sbFamily;   // priority 51 — $(chip) family
 
+// Status bar item (Right) ────────────────────────────────────────────────────
+let sbDocIndex;          // Right — doc reference count
+let docIndexCount = 0;   // last known count
+let docIndexFlashTimer = null;
+
 const ALL_FAMILIES = [
   { label: "auto",  description: "Let freight detect the compiler" },
   { label: "gcc",   description: "GCC / g++ / gfortran" },
@@ -66,6 +71,12 @@ function _activate(context) {
   sbFamily.command = "freight.pickFamily";
   sbFamily.show();
   context.subscriptions.push(sbFamily);
+
+  sbDocIndex = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right, 100);
+  sbDocIndex.tooltip = "Freight doc index — number of documented symbols indexed";
+  sbDocIndex.show();
+  context.subscriptions.push(sbDocIndex);
+  renderDocIndexBar();
 
   refreshStatusBars("idle");
 
@@ -270,6 +281,17 @@ function refreshStatusBars(state) {
     : "Compiler family: auto-detect — click to override";
 }
 
+function renderDocIndexBar(flash) {
+  if (!sbDocIndex) return;
+  if (flash === "updated") {
+    sbDocIndex.text = `$(check) ${docIndexCount} refs`;
+    sbDocIndex.color = new vscode.ThemeColor("statusBarItem.prominentForeground");
+  } else {
+    sbDocIndex.text = `$(book) ${docIndexCount} refs`;
+    sbDocIndex.color = undefined;
+  }
+}
+
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
 function getActiveWorkspaceFolder() {
@@ -321,6 +343,17 @@ async function startLanguageServer(context) {
     }
   );
 
+  client.onNotification("freight/docIndexUpdated", (params) => {
+    const count = params && typeof params.items === "number" ? params.items : 0;
+    docIndexCount = count;
+    renderDocIndexBar("updated");
+    if (docIndexFlashTimer) clearTimeout(docIndexFlashTimer);
+    docIndexFlashTimer = setTimeout(() => {
+      renderDocIndexBar();
+      docIndexFlashTimer = null;
+    }, 2500);
+  });
+
   context.subscriptions.push(client);
   refreshStatusBars("building");
   try {
@@ -365,6 +398,8 @@ async function stopLanguageServer() {
   const old = client;
   client = undefined;
   await old.stop();
+  docIndexCount = 0;
+  renderDocIndexBar();
   refreshStatusBars("idle");
 }
 

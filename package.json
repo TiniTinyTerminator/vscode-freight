@@ -173,6 +173,10 @@
         "title": "Freight: Restart Language Server"
       },
       {
+        "command": "freight.attachRustDebugger",
+        "title": "Freight: Attach Rust Debugger to LSP"
+      },
+      {
         "command": "freight.generateCompileCommands",
         "title": "Freight: Generate compile_commands.json"
       },

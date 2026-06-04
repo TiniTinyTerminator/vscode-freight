@@ -21,6 +21,15 @@
         "${env:HOME}/.vscode-server/**"
       ],
       "preLaunchTask": "bun: package"
-    }
+    },
+    {
+      "name": "Attach to freight LSP (Rust)",
+      "type": "lldb",
+      "request": "attach",
+      "program": "${workspaceFolder}/../../target/debug/freight",
+      "pid": "${command:pickProcess}",
+      "stopOnEntry": false,
+      "sourceLanguages": ["rust"]
+    },
   ]
 }

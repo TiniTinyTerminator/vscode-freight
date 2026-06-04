@@ -5,6 +5,8 @@ const fs = require("fs");
 const os = require("os");
 const path = require("path");
 
+const FREIGHT_LSP_PID_FILE = "/tmp/freight-lsp-debug.pid";
+
 let client;
 let explorerProvider;
 
@@ -206,6 +208,11 @@ function _activate(context) {
     vscode.commands.registerCommand("freight.refreshExplorer", () => {
       explorerProvider.refresh();
     }),
+    vscode.commands.registerCommand("freight.attachRustDebugger", () => {
+      attachFreightDebugger().catch((e) => {
+        vscode.window.showWarningMessage(`freight Rust debugger attach failed: ${e?.message ?? e}`);
+      });
+    }),
     vscode.commands.registerCommand("freight.openDepDoc", (name) => {
       if (name) {
         vscode.env.openExternal(vscode.Uri.parse(`https://freight.dev/packages/${name}`));
@@ -323,11 +330,12 @@ async function startLanguageServer(context) {
   if (!config.get("lsp.enableFortls", true))   args.push("--no-fortls");
   if (!config.get("lsp.enableAsmLsp", true))   args.push("--no-asm-lsp");
 
+  const isDev = context.extensionMode === vscode.ExtensionMode.Development;
+
   // Resolve log level: explicit setting wins; fall back to "debug" in
   // extension development mode (F5) so logs appear automatically.
   const cfgLogLevel = config.get("lsp.logLevel", "");
-  const logLevel = cfgLogLevel ||
-    (context.extensionMode === vscode.ExtensionMode.Development ? "debug" : "");
+  const logLevel = cfgLogLevel || (isDev ? "debug" : "");
 
   const serverEnv = logLevel
     ? { ...process.env, FREIGHT_LOG: logLevel }
@@ -369,6 +377,56 @@ async function startLanguageServer(context) {
 
 function appendIfChanged(args, flag, value, defaultValue) {
   if (value && value !== defaultValue) args.push(flag, value);
+}
+
+/** Find the PID of the running freight LSP process and attach CodeLLDB. */
+async function attachFreightDebugger() {
+  // Try the PID file first (written when --wait-for-debugger is passed).
+  let pid;
+  try {
+    const content = fs.readFileSync(FREIGHT_LSP_PID_FILE, "utf8").trim();
+    const n = parseInt(content, 10);
+    if (n > 0) pid = n;
+  } catch { /* no file — server running normally */ }
+
+  // Fall back: find the process by scanning /proc for a freight lsp cmdline.
+  if (!pid) {
+    pid = findFreightLspPid();
+  }
+
+  if (!pid) {
+    vscode.window.showWarningMessage(
+      "Could not find a running freight lsp process. Start the extension host first (F5)."
+    );
+    return;
+  }
+
+  const folder = (vscode.workspace.workspaceFolders || [])[0];
+  await vscode.debug.startDebugging(folder, {
+    type: "lldb",
+    request: "attach",
+    name: "Attach to freight LSP (Rust)",
+    pid,
+    stopOnEntry: false,
+    sourceLanguages: ["rust"],
+  });
+}
+
+/** Scan /proc for a process whose cmdline contains "freight" and "lsp". */
+function findFreightLspPid() {
+  try {
+    const entries = fs.readdirSync("/proc").filter((e) => /^\d+$/.test(e));
+    for (const entry of entries) {
+      try {
+        const cmdline = fs.readFileSync(`/proc/${entry}/cmdline`, "utf8");
+        const parts = cmdline.split("\0");
+        if (parts.some((p) => p.includes("freight")) && parts.includes("lsp")) {
+          return parseInt(entry, 10);
+        }
+      } catch { /* process gone or no permission */ }
+    }
+  } catch { /* not Linux */ }
+  return null;
 }
 
 /** Query `freight/workspaceInfo` from the running LSP client.

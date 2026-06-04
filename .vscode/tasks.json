@@ -6,6 +6,14 @@
       "type": "shell",
       "command": "bun run package",
       "problemMatcher": []
+    },
+    {
+      "label": "cargo: build freight (debug)",
+      "type": "shell",
+      "command": "cargo build -p freight",
+      "options": { "cwd": "${workspaceFolder}/../.." },
+      "problemMatcher": "$rustc",
+      "group": "build"
     }
   ]
 }

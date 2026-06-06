@@ -23,10 +23,7 @@ async function startLanguageServer(
   }
 
   const clangd = config.get("lsp.clangdPath", "clangd");
-  const clangdArgs = [
-    "--hover-style=detailed",
-    ...config.get<string[]>("lsp.clangdArgs", []),
-  ];
+  const clangdArgs = [...config.get<string[]>("lsp.clangdArgs", [])];
 
   const serverOptions = { command: clangd, args: clangdArgs };
 

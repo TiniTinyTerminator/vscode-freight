@@ -1,6 +1,8 @@
 import * as vscode from "vscode";
 import { LanguageClient } from "vscode-languageclient/node";
 import * as fs from "fs";
+import * as os from "os";
+import * as path from "path";
 
 import { freightDocumentSelector } from "./utils";
 import type { ExtensionState } from "./state";
@@ -9,6 +11,33 @@ import type { StatusController } from "./status";
 const FREIGHT_LSP_PID_FILE = "/tmp/freight-lsp-debug.pid";
 
 let client: InstanceType<typeof LanguageClient> | undefined;
+
+// Expand a leading `~` so users can write ~/bin/freight in settings.
+function resolveExePath(exe: string): string {
+  if (exe === "~" || exe.startsWith("~/") || exe.startsWith("~" + path.sep)) {
+    return path.join(os.homedir(), exe.slice(1));
+  }
+  return exe;
+}
+
+// VS Code is often launched from a desktop launcher whose PATH is the bare
+// system PATH, missing ~/.cargo/bin and other user-local prefix dirs where
+// `freight` (and fortls/asm-lsp) typically live.  Prepend the common spots.
+function buildEnv(extra: Record<string, string> = {}): Record<string, string> {
+  const home = os.homedir();
+  const extraDirs = [
+    path.join(home, ".cargo", "bin"),
+    path.join(home, ".local", "bin"),
+    "/usr/local/bin",
+  ];
+  const sep = path.delimiter;
+  const existing = (process.env.PATH || "").split(sep).filter(Boolean);
+  const merged = [
+    ...extraDirs.filter(d => !existing.includes(d)),
+    ...existing,
+  ].join(sep);
+  return { ...(process.env as Record<string, string>), PATH: merged, ...extra };
+}
 
 
 async function startLanguageServer(
@@ -22,10 +51,10 @@ async function startLanguageServer(
     return;
   }
 
-  const freight = config.get("executablePath", "freight") as string;
+  const freight = resolveExePath(config.get("executablePath", "freight") as string);
   const profile = config.get("lsp.profile", "dev") as string;
-  const fortls = config.get("lsp.fortlsPath", "fortls") as string;
-  const asmLsp = config.get("lsp.asmLspPath", "asm-lsp") as string;
+  const fortls = resolveExePath(config.get("lsp.fortlsPath", "fortls") as string);
+  const asmLsp = resolveExePath(config.get("lsp.asmLspPath", "asm-lsp") as string);
   const enableFortls = config.get("lsp.enableFortls", true) as boolean;
   const enableAsmLsp = config.get("lsp.enableAsmLsp", true) as boolean;
   const logLevel = config.get("lsp.logLevel", "") as string;
@@ -34,10 +63,8 @@ async function startLanguageServer(
   if (!enableFortls) args.push("--no-fortls");
   if (!enableAsmLsp) args.push("--no-asm-lsp");
 
-  const env: Record<string, string> = { ...process.env as Record<string, string> };
-  if (logLevel) env["FREIGHT_LOG"] = logLevel;
-
-  const serverOptions = { command: freight, args, options: { env } };
+  const extraEnv = logLevel ? { FREIGHT_LOG: logLevel } : {};
+  const serverOptions = { command: freight, args, options: { env: buildEnv(extraEnv) } };
 
   client = new LanguageClient(
     "freight",

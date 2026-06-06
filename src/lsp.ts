@@ -24,6 +24,7 @@ async function startLanguageServer(
 
   const clangd = config.get("lsp.clangdPath", "clangd");
   const clangdArgs = [
+    "--stdio",
     "--hover-style=detailed",
     ...config.get<string[]>("lsp.clangdArgs", []),
   ];
@@ -57,7 +58,11 @@ async function stopLanguageServer(_state: ExtensionState, status: StatusControll
   if (!client) return;
   const old = client;
   client = undefined;
-  await old.stop();
+  try {
+    await old.stop();
+  } catch {
+    // Client may already be stopped or failed to start.
+  }
   status.refresh("idle");
 }
 

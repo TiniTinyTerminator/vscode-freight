@@ -22,14 +22,26 @@ async function startLanguageServer(
     return;
   }
 
-  const clangd = config.get("lsp.clangdPath", "clangd");
-  const clangdArgs = [...config.get<string[]>("lsp.clangdArgs", [])];
+  const freight = config.get("executablePath", "freight") as string;
+  const profile = config.get("lsp.profile", "dev") as string;
+  const fortls = config.get("lsp.fortlsPath", "fortls") as string;
+  const asmLsp = config.get("lsp.asmLspPath", "asm-lsp") as string;
+  const enableFortls = config.get("lsp.enableFortls", true) as boolean;
+  const enableAsmLsp = config.get("lsp.enableAsmLsp", true) as boolean;
+  const logLevel = config.get("lsp.logLevel", "") as string;
 
-  const serverOptions = { command: clangd, args: clangdArgs };
+  const args = ["lsp", "--profile", profile, "--fortls", fortls, "--asm-lsp", asmLsp];
+  if (!enableFortls) args.push("--no-fortls");
+  if (!enableAsmLsp) args.push("--no-asm-lsp");
+
+  const env: Record<string, string> = { ...process.env as Record<string, string> };
+  if (logLevel) env["FREIGHT_LOG"] = logLevel;
+
+  const serverOptions = { command: freight, args, options: { env } };
 
   client = new LanguageClient(
     "freight",
-    "Freight",
+    "Freight Language Server",
     serverOptions,
     {
       documentSelector: freightDocumentSelector(),
@@ -46,7 +58,7 @@ async function startLanguageServer(
   } catch (error) {
     status.refresh("fail");
     const message = error instanceof Error ? error.message : String(error);
-    vscode.window.showWarningMessage(`Could not start clangd: ${message}`);
+    vscode.window.showWarningMessage(`Could not start freight lsp: ${message}`);
   }
 }
 

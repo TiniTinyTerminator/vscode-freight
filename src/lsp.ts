@@ -54,6 +54,21 @@ function findInPath(cmd: string, augmentedPath: string): string | undefined {
   return undefined;
 }
 
+// Walk upward from `startDir` looking for a Cargo.toml.  Returns the
+// directory that contains it, or undefined if none is found within 6 levels.
+// Used to detect dev mode: when the extension lives inside the freight
+// workspace tree we can use `cargo run` instead of a pre-built binary.
+function findCargoRoot(startDir: string): string | undefined {
+  let dir = startDir;
+  for (let i = 0; i < 6; i++) {
+    if (fs.existsSync(path.join(dir, "Cargo.toml"))) return dir;
+    const parent = path.dirname(dir);
+    if (parent === dir) break;
+    dir = parent;
+  }
+  return undefined;
+}
+
 // Collect candidate root directories to look for dev-built freight binaries.
 // Tries (in order):
 //   - VS Code workspace folders
@@ -118,21 +133,23 @@ async function startLanguageServer(
     return;
   }
 
-  const freight = resolveFreightBinary(config.get("executablePath", "freight") as string, context.extensionPath);
   const profile = config.get("lsp.profile", "dev") as string;
-  const fortls = resolveExePath(config.get("lsp.fortlsPath", "fortls") as string);
-  const asmLsp = resolveExePath(config.get("lsp.asmLspPath", "asm-lsp") as string);
-  const enableFortls = config.get("lsp.enableFortls", true) as boolean;
-  const enableAsmLsp = config.get("lsp.enableAsmLsp", true) as boolean;
   const logLevel = config.get("lsp.logLevel", "") as string;
 
-  const args = ["lsp", "--profile", profile, "--fortls", fortls, "--asm-lsp", asmLsp];
-  if (!enableFortls) args.push("--no-fortls");
-  if (!enableAsmLsp) args.push("--no-asm-lsp");
+  // fortls and asm-lsp are not yet implemented — always disabled.
+  const args = ["lsp", "--profile", profile, "--no-fortls", "--no-asm-lsp"];
 
-  const extraEnv = logLevel ? { FREIGHT_LOG: logLevel } : {};
+  const extraEnv: Record<string, string> = logLevel ? { FREIGHT_LOG: logLevel } : {};
   const env = buildEnv(extraEnv);
-  const serverOptions = { command: freight, args, options: { env } };
+
+  // Dev mode: when the extension lives inside the freight source tree, launch
+  // via `cargo run` so edits are picked up on the next LSP restart without a
+  // manual `cargo build` step.  In production (installed extension), fall back
+  // to the configured/discovered freight binary.
+  const cargoRoot = findCargoRoot(context.extensionPath);
+  const serverOptions = cargoRoot
+    ? { command: "cargo", args: ["run", "--bin", "freight", "--", ...args], options: { env, cwd: cargoRoot } }
+    : { command: resolveFreightBinary(config.get("executablePath", "freight") as string, context.extensionPath), args, options: { env } };
 
   client = new LanguageClient(
     "freight",

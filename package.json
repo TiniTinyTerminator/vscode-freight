@@ -2,7 +2,7 @@
   "name": "vscode-freight",
   "displayName": "Freight",
   "description": "VS Code support for freight.toml, Freight tasks, and freight lsp.",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "publisher": "freight",
   "license": "Apache-2.0",
   "engines": {

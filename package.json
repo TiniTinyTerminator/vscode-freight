@@ -2,7 +2,7 @@
   "name": "vscode-freight",
   "displayName": "Freight",
   "description": "VS Code support for freight.toml, Freight tasks, and freight lsp.",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "publisher": "freight",
   "license": "Apache-2.0",
   "engines": {
@@ -84,6 +84,13 @@
         "path": "./syntaxes/freight.tmLanguage.json"
       }
     ],
+    "configurationDefaults": {
+      "[c]": { "editor.semanticHighlighting.enabled": true },
+      "[cpp]": { "editor.semanticHighlighting.enabled": true },
+      "[cuda-cpp]": { "editor.semanticHighlighting.enabled": true },
+      "[objective-c]": { "editor.semanticHighlighting.enabled": true },
+      "[objective-cpp]": { "editor.semanticHighlighting.enabled": true }
+    },
     "taskDefinitions": [
       {
         "type": "freight",

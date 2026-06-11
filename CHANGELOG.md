@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.3.0
+
+- Enable semantic highlighting by default for C/C++/CUDA/Obj-C languages so the
+  colors from `freight lsp` (clangd's semantic tokens — types, functions,
+  variables, members, etc.) actually show, regardless of the theme's default.
+  Needed when the Microsoft C/C++ extension is disabled, since nothing else
+  provides that coloring.
+
 ## 0.2.0
 
 - C/C++ document symbols, folding, references, document highlight, and semantic

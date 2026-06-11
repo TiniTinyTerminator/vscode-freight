@@ -1,0 +1,25 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "scopeName": "freight.cpp.modules",
+  "injectionSelector": "L:source.cpp -comment -string, L:source.cuda-cpp -comment -string, L:source.objcpp -comment -string",
+  "patterns": [
+    {
+      "comment": "Header-unit import: import <header>; / export import \"header\";",
+      "match": "\\b(?:(export)\\s+)?(import)\\s+(<[^>]+>|\"[^\"]+\")",
+      "captures": {
+        "1": { "name": "keyword.control.import.cpp" },
+        "2": { "name": "keyword.control.import.cpp" },
+        "3": { "name": "string.quoted.other.lt-gt.include.cpp" }
+      }
+    },
+    {
+      "comment": "Named module / import / partition: export module foo; import std; module;",
+      "match": "^\\s*(?:(export)\\s+)?(import|module)\\b\\s*([A-Za-z_][\\w.:]*)?",
+      "captures": {
+        "1": { "name": "keyword.control.import.cpp" },
+        "2": { "name": "keyword.control.import.cpp" },
+        "3": { "name": "entity.name.type.module.cpp" }
+      }
+    }
+  ]
+}

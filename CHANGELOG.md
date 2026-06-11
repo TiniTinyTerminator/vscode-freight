@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.3.1
+
+- Syntax-highlight C++20 module statements via an injected grammar:
+  `import <header>;` / `import "header";`, `import std;`, and
+  `export module …;` / `module;`. VS Code's built-in C++ grammar leaves these
+  uncoloured (and clangd's semantic tokens don't cover the `import`/`module`
+  keyword or an unresolved header unit), so the directive now reads as a keyword
+  + include/module name.
+
 ## 0.3.0
 
 - Enable semantic highlighting by default for C/C++/CUDA/Obj-C languages so the
